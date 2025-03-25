@@ -1,0 +1,70 @@
+# Copyright (c) 2025 EPAM Systems
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+stages:
+  - lint
+  - test
+
+variables:
+  # Use the official Python Docker image.
+  PYTHON_IMAGE: "python:3.13.1-alpine3.20"
+
+# Optional: Cache dependencies to speed up subsequent jobs
+cache:
+  paths:
+    - venv/
+    - __pycache__/
+
+before_script:
+  # Setup virtual environment and install dependencies
+  - python -m venv venv
+  - source venv/bin/activate
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+
+lint:
+  stage: lint
+  image: $PYTHON_IMAGE
+  script:
+    - pip install black
+    - black --check .
+
+test:
+  stage: test
+  image: $PYTHON_IMAGE
+  script:
+    - pip install pytest
+    - pytest
+
+# Optional: Define job artifacts
+# artifacts:
+#  when: always
+#  paths:
+#    - test-reports/
+#    - coverage/
+
+# Optional: Define a 'coverage' job to generate coverage reports
+# coverage:
+#  stage: test
+#  image: $PYTHON_IMAGE
+#  script:
+#    - pip install pytest pytest-cov
+#    - pytest --cov=. --cov-report=xml:coverage.xml
+#  artifacts:
+#    reports:
+#      junit: report.xml
+#      coverage_report:
+#        coverage_format: cobertura
+#    paths:
+#      - coverage.xml

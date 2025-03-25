@@ -1,0 +1,90 @@
+{
+    "settings": {
+        "target_repo_type": "github",
+        "source_repo_type": "subversion",
+        "log_level": "info"
+    },
+    "defaults": {
+        "repo_settings": {
+            "standard": {
+                "allow_merge_commit": true,
+                "allow_rebase_merge": false,
+                "allow_squash_merge": true,
+                "default_branch": "main",
+                "delete_branch_on_merge": true,
+                "has_discussions": false,
+                "has_issues": false,
+                "has_projects": false,
+                "has_wiki": false,
+                "private": true
+            }
+        },
+        "subversion_ignore_paths": ".*(\\.jar|\\.class|\\.log|\\.xls|\\.xlsx|\\.zip|\\.doc|\\.docx|\\.pptx|\\.tar|\\.rar)$",
+        "team_permissions": {
+            "standard": {
+                "testteam1": "push",
+                "devops": "admin"
+            },
+            "iacconfig": {
+                "team1": "push",
+                "devops": "admin",
+                "gitops": "pull"
+            },
+            "devops": {
+                "devops": "admin"
+            }
+        },
+        "user_permissions": {
+            "iacconfig": {
+                "testuser1": "read"
+            }
+        }
+    },
+    "repos": {
+        "repo-test-type1": {
+            "owner": "epam-test-org1",
+            "enforce_repo_settings": true,
+            "repo_settings": {
+                "use_default": "standard"
+            },
+            "application": "repo-app-1",
+            "create_repo": true,
+            "repo_topics": [
+                "appid-123456",
+                "distributed-false",
+                "another-repo-topic"
+            ],
+            "team_permissions": {
+                "standard": ""
+            },
+            "user_permissions": {
+                "special-user-test345": "admin",
+                "iacconfig": ""
+            }
+        },
+        "repo-test-type2": {
+            "owner": "epam-test-org1",
+            "enforce_repo_settings": true,
+            "repo_settings": {
+                "use_default": "standard",
+                "has_wiki": true
+            },
+            "application": "repo-app-1",
+            "create_repo": true,
+            "source_repo": "svn://127.0.0.1/mysvncode",
+            "subversion_revision": null,
+            "repo_topics": [
+                "appid-123456",
+                "distributed-false",
+                "another-repo-topic"
+            ],
+            "team_permissions": {
+                "iacconfig": ""
+            },
+            "user_permissions": {
+                "special-user-test345": "admin",
+                "iacconfig": ""
+            }
+        }
+    }
+}
