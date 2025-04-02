@@ -1,2 +1,4 @@
 GitPython==3.1.44
 PyGithub==2.6.1
+Black==22.3.0
+PyTest==7.1.2
