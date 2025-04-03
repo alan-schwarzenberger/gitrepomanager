@@ -37,6 +37,19 @@
             "iacconfig": {
                 "testuser1": "read"
             }
+        },
+        "webhooks": {
+            "standard": {
+                "url": "https://example.com/webhook/",
+                "content_type": "form",
+                "events": [
+                    "push",
+                    "pull_request",
+                    "pull_request_review",
+                    "pull_request_review_comment"
+                ],
+                "insecure_ssl": "0"
+            }
         }
     },
     "repos": {
@@ -81,7 +94,19 @@
             "user_permissions": {
                 "special-user-test345": "admin",
                 "iacconfig": ""
+            },
+            "webhooks": {
+                "standard": "",
+                "special-webhook": {
+                    "url": "https://example.com/webhook2/",
+                    "content_type": "form",
+                    "events": [
+                        "push"
+                    ],
+                    "insecure_ssl": "0"
+                }
             }
+            
         }
     }
 }

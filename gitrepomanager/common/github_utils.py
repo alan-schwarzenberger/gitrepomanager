@@ -32,6 +32,92 @@ def authenticate_to_github(*, access_token, enterprise_url=None):
         raise (f"An error occurred while authenticating to GitHub: {e}")
 
 
+def create_or_update_github_webhook(
+    *,
+    github_repo,
+    webhook_config,
+    indent_level=0,
+):
+    """
+    Create or update a webhook on a repository.
+
+    Args:
+        github_repo: The repository object.
+        webhook_config: A dictionary containing the webhook configuration. Expected keys:
+            - url: The URL for the webhook.
+            - events: A list of events the webhook should trigger on (default: ["push"]).
+            - secret: The secret for the webhook (optional).
+            - content_type: The content type for the webhook payload (default: "json").
+            - insecure_ssl: Whether to allow insecure SSL (default: "0").
+            - active: Whether the webhook should be active (default: True).
+        indent_level: The indentation level for logging.
+
+    Returns:
+        The created or updated webhook object, or None if an error occurs.
+    """
+    try:
+        url = webhook_config.get("url")
+        if not url:
+            raise ValueError("Webhook configuration must include a 'url' key.")
+
+        active = webhook_config.get("active", True)
+        content_type = webhook_config.get("content_type", "json")
+        events = webhook_config.get("events", ["push"])
+        insecure_ssl = webhook_config.get("insecure_ssl", "0")
+        name = "web"  # only value accepted by github api
+        secret = webhook_config.get("secret")
+
+        # Check if a webhook with the same URL already exists
+        existing_hooks = github_repo.get_hooks()
+        for hook in existing_hooks:
+            if hook.config.get("url") == url:
+                # Update the existing webhook if necessary
+                hook.edit(
+                    name=name,
+                    config={
+                        "url": url,
+                        "content_type": content_type,
+                        "secret": secret,
+                        "insecure_ssl": insecure_ssl,
+                    },
+                    events=events,
+                    active=active,
+                )
+                log_message(
+                    LogLevel.INFO,
+                    f"Updated existing webhook for URL '{url}' on repository '{github_repo.full_name}'",
+                    indent_level=indent_level,
+                )
+                return hook
+
+        # Create a new webhook if no existing one matches
+        new_hook = github_repo.create_hook(
+            name=name,
+            config={
+                "url": url,
+                "content_type": content_type,
+                "secret": secret,
+                "insecure_ssl": insecure_ssl,
+            },
+            events=events,
+            active=active,
+        )
+        log_message(
+            LogLevel.INFO,
+            f"Created new webhook for URL '{url}' on repository '{github_repo.full_name}'",
+            indent_level=indent_level,
+        )
+        return new_hook
+
+    except GithubException as e:
+        log_message(
+            LogLevel.ERROR,
+            f"Failed to create or update webhook for URL '{url}' on repository '{github_repo.full_name}': {e}",
+            indent_level=indent_level,
+        )
+        return None
+
+
 def get_github_info(*, github_target, github_user_login=None, indent_level=0):
     if not github_user_login:
         github_user_login = github_target.get_user().login
@@ -498,6 +584,66 @@ def github_enforce_repo_user_permissions(
         )
 
 
+def github_enforce_repo_webhooks(
+    *, github_repo, expected_settings, indent_level=0, dry_run=False
+):
+    """
+    Enforce the desired webhooks on a repository.
+
+    Args:
+        github_repo: The repository object.
+        expected_settings: A list of desired webhook configurations.
+        indent_level: The indentation level for logging.
+        dry_run: If True, simulate the changes without applying them.
+
+    Returns:
+        None
+    """
+    try:
+        if dry_run:
+            log_message(
+                LogLevel.INFO,
+                f"[Dry-run] Would enforce webhooks for {github_repo.full_name}",
+                indent_level=indent_level,
+            )
+            return  # Simulate no changes
+
+        log_message(
+            LogLevel.INFO,
+            f"Enforcing webhooks for {github_repo.full_name}",
+            indent_level=indent_level,
+        )
+
+        # Check if there are no webhooks in the expected settings
+        if not expected_settings.get("webhooks"):
+            log_message(
+                LogLevel.INFO,
+                f"No webhooks specified in expected settings for {github_repo.full_name}",
+                indent_level=indent_level,
+            )
+            return
+
+        # Compare and enforce webhooks
+        for desired_webhook in expected_settings["webhooks"]:
+            create_or_update_github_webhook(
+                github_repo=github_repo,
+                webhook_config=desired_webhook,
+                indent_level=indent_level + 1,
+            )
+
+        log_message(
+            LogLevel.INFO,
+            f"Webhooks enforced for repository {github_repo.full_name}",
+            indent_level=indent_level,
+        )
+    except GithubException as e:
+        log_message(
+            LogLevel.ERROR,
+            f"Error while enforcing webhooks in repository {github_repo.full_name}: {e}",
+            indent_level=indent_level,
+        )
+
+
 def github_process_target_repo(
     *,
     github_target,
@@ -607,6 +753,12 @@ def github_process_target_repo(
             indent_level=1,
             dry_run=dry_run,
         )
+        github_enforce_repo_webhooks(
+            github_repo=github_target_repo,
+            expected_settings=expected_repo_data,
+            indent_level=1,
+            dry_run=dry_run,
+        )
 
     return True
 
@@ -664,6 +816,30 @@ def github_repo_exists(*, github_target, repo_name, repo_owner, indent_level=0):
             raise Exception(
                 f"An error occurred checking if repo {repo_owner}/{repo_name} exists: {e}"
             )
+
+
+def transform_github_webhook_to_config(webhook):
+    """
+    Transform a webhook object into the JSON format expected by create_or_update_webhook.
+
+    Args:
+        webhook: A webhook object returned by the GitHub API.
+
+    Returns:
+        A dictionary representing the webhook configuration.
+    """
+    try:
+        config = {
+            "url": webhook.config.get("url"),
+            "events": webhook.events,
+            "secret": webhook.config.get("secret"),
+            "content_type": webhook.config.get("content_type", "json"),
+            "insecure_ssl": webhook.config.get("insecure_ssl", "0"),
+            "active": webhook.active,
+        }
+        return config
+    except AttributeError as e:
+        raise ValueError(f"Invalid webhook object: {e}")
 
 
 def update_file_in_repo(
