@@ -64,7 +64,7 @@ def create_or_update_github_webhook(
         content_type = webhook_config.get("content_type", "json")
         events = webhook_config.get("events", ["push"])
         insecure_ssl = webhook_config.get("insecure_ssl", "0")
-        name="web" # only value accepted by github api
+        name = "web"  # only value accepted by github api
         secret = webhook_config.get("secret")
 
         # Check if a webhook with the same URL already exists
@@ -164,38 +164,6 @@ def get_github_repo_url(*, github_target, repo_name, repo_owner, indent_level=0)
             LogLevel.ERROR,
             f"Failed to get repository URL for '{repo_owner}/{repo_name}': {e}",
             indent_level=indent_level + 1,
-        )
-        return None
-
-
-def get_github_repo_webhooks(*, github_repo, indent_level=0):
-    """
-    Retrieve a list of all webhooks on a repository as JSON configuration objects.
-
-    Args:
-        github_repo: The repository object.
-        indent_level: The indentation level for logging.
-
-    Returns:
-        A list of webhook configurations or None if an error occurs.
-    """
-    try:
-        webhooks = github_repo.get_hooks()
-        log_message(
-            LogLevel.INFO,
-            f"Retrieved {webhooks.totalCount} webhooks for repository '{github_repo.full_name}'",
-            indent_level=indent_level,
-        )
-        # Transform webhook objects into JSON configuration objects
-        webhook_configs = [
-            transform_github_webhook_to_config(webhook) for webhook in webhooks
-        ]
-        return webhook_configs
-    except GithubException as e:
-        log_message(
-            LogLevel.ERROR,
-            f"Failed to retrieve webhooks for repository '{github_repo.full_name}': {e}",
-            indent_level=indent_level,
         )
         return None
 
@@ -654,11 +622,6 @@ def github_enforce_repo_webhooks(
                 indent_level=indent_level,
             )
             return
-
-        # Get the current webhooks as JSON configurations
-        current_webhooks = get_github_repo_webhooks(
-            github_repo=github_repo, indent_level=indent_level + 1
-        )
 
         # Compare and enforce webhooks
         for desired_webhook in expected_settings["webhooks"]:
