@@ -94,6 +94,10 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
             "content_type": "form",
             "insecure_ssl": "0",
         }
+        data["defaults"]["gitignore"]["standard"] = {
+            "config": "../../master.gitignore",
+            "branches": ["main"],
+        }
         data["repos"] = {}
 
         # Open the CSV file for reading
@@ -191,7 +195,9 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
                         data["repos"][gitreponame]["webhooks"] = {"standard": ""}
                     elif row.get("WebHook", "").strip().lower() == "pronly":
                         data["repos"][gitreponame]["webhooks"] = {"pronly": ""}
-                    # we choose to ignore the old script's webhook settings if they are not standard or pronly
+                    # we choose to ignore the other old script's webhook settings
+                    if row.get("GitIgnore", "").strip().lower() == "yes":
+                        data["repos"][gitreponame]["gitignore"] = {"standard": ""}
 
                 json.dump(data, json_file, indent=4)
                 log_message(
@@ -281,7 +287,7 @@ def get_expected_repo_data(repo_config_data, default_config_data, indent_level=0
             desired_webhook_settings = repo_config_data.get("webhooks", {})
             # Get the default webhook settings from the repo_data
             default_webhook_settings = default_config_data.get("webhooks", {})
-            # Expand permissions for teams with an empty string as their desired permission
+            # Expand permissions for webhooks with an empty string as their desired permission
             expanded_webhook_settings = []
             for webhook_name, webhook_config in desired_webhook_settings.items():
                 if not webhook_config:
@@ -293,6 +299,57 @@ def get_expected_repo_data(repo_config_data, default_config_data, indent_level=0
                     expanded_webhook_settings.append(webhook_config)
 
             expected_repo_data["webhooks"] = expanded_webhook_settings
+        elif key == "gitignore":
+            # Get the desired gitignore settings from the repo_data
+            desired_gitignore_settings = repo_config_data.get("gitignore", {})
+            # Log a warning if there is more than one entry in desired_gitignore_settings
+            if len(desired_gitignore_settings) > 1:
+                log_message(
+                    LogLevel.WARNING,
+                    "Warning: More than one entry found in desired_gitignore_settings.",
+                    indent_level=indent_level,
+                )
+            else:
+                # Get the default gitignore settings from the repo_data
+                default_gitignore_settings = default_config_data.get("gitignore", {})
+                # Expand permissions for the single entry in desired_gitignore_settings
+                gitignore_name, gitignore_data = next(
+                    iter(desired_gitignore_settings.items()), (None, None)
+                )
+                if gitignore_name:
+                    if not gitignore_data:
+                        # Use default gitignore settings if desired config is empty
+                        gitignore_data = default_gitignore_settings.get(
+                            gitignore_name, {}
+                        )
+
+                    # Extract config and branches
+                    gitignore_config = gitignore_data.get("config")
+                    gitignore_branches = gitignore_data.get("branches", ["main"])
+
+                    # Test the type of the gitignore_config
+                    if isinstance(gitignore_config, str):
+                        if gitignore_config.startswith(
+                            "http://"
+                        ) or gitignore_config.startswith("https://"):
+                            gitignore_config_type = "url"
+                        else:
+                            gitignore_config_type = "file"
+                    elif isinstance(gitignore_config, list):
+                        gitignore_config_type = "list"
+                    else:
+                        log_message(
+                            LogLevel.WARNING,
+                            "Gitignore config type is unrecognized.",
+                            indent_level=indent_level,
+                        )
+                        gitignore_config_type = "unknown"
+
+                expected_repo_data["gitignore"] = {
+                    "type": gitignore_config_type,
+                    "config": gitignore_config,
+                    "branches": gitignore_branches,
+                }
         else:
             expected_repo_data[key] = value
 
