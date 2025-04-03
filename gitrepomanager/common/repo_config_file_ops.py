@@ -73,6 +73,27 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
         data["defaults"]["user_permissions"]["iacconfig"] = {
             "argocd-deployer-uk-p": "read",
         }
+        data["defaults"]["webhooks"]["standard"] = {
+            "url": "https://jenkins.de-cbj.ekspd.aws.travp.net/teams-uk-software-engineering/github-webhook/",
+            "events": [
+                "push",
+                "pull_request",
+                "pull_request_review",
+                "pull_request_review_comment",
+            ],
+            "content_type": "form",
+            "insecure_ssl": "0",
+        }
+        data["defaults"]["webhooks"]["pronly"] = {
+            "url": "https://jenkins.de-cbj.ekspd.aws.travp.net/teams-uk-software-engineering/github-webhook/",
+            "events": [
+                "pull_request",
+                "pull_request_review",
+                "pull_request_review_comment",
+            ],
+            "content_type": "form",
+            "insecure_ssl": "0",
+        }
         data["repos"] = {}
 
         # Open the CSV file for reading
@@ -166,10 +187,13 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
                         data["repos"][gitreponame][
                             "user_permissions"
                         ] = user_permissions
+                    if row.get("WebHook", "").strip().lower() == "standard":
+                        data["repos"][gitreponame]["webhooks"] = {"standard": ""}
+                    elif row.get("WebHook", "").strip().lower() == "pronly":
+                        data["repos"][gitreponame]["webhooks"] = {"pronly": ""}
+                    # we choose to ignore the old script's webhook settings if they are not standard or pronly
 
-                # json_file.write('[\n')
                 json.dump(data, json_file, indent=4)
-                # json_file.write('\n]')
                 log_message(
                     LogLevel.INFO,
                     f"JSON file created successfully: {json_file_path}",
@@ -179,7 +203,6 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
     # Still to be done:
 
     # TODO: PrePostMigration was a flag to alter some permissions.  We should find a way to not need this in the new config file
-    # TODO: Webhook
     # TODO: GitIgnore
     # TODO: branchprotect
     # TODO: PermsDeleteUnexpected - maybe this is duplicated by enforce_repo_settings?
@@ -253,6 +276,23 @@ def get_expected_repo_data(repo_config_data, default_config_data, indent_level=0
                 else:
                     expanded_team_permissions[team] = permission
             expected_repo_data["team_permissions"] = expanded_team_permissions
+        elif key == "webhooks":
+            # Get the desired webhook settings from the repo_data
+            desired_webhook_settings = repo_config_data.get("webhooks", {})
+            # Get the default webhook settings from the repo_data
+            default_webhook_settings = default_config_data.get("webhooks", {})
+            # Expand permissions for teams with an empty string as their desired permission
+            expanded_webhook_settings = []
+            for webhook_name, webhook_config in desired_webhook_settings.items():
+                if not webhook_config:
+                    # Use default webhook settings if desired config is empty
+                    default_config = default_webhook_settings.get(webhook_name, {})
+                    if default_config:
+                        expanded_webhook_settings.append(default_config)
+                else:
+                    expanded_webhook_settings.append(webhook_config)
+
+            expected_repo_data["webhooks"] = expanded_webhook_settings
         else:
             expected_repo_data[key] = value
 

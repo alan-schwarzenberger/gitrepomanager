@@ -288,7 +288,6 @@ def main():
             case _:
                 raise Exception(f"Invalid source repository: {args.source_repo_type}")
 
-        # FIXME: we may have to add global git config values for user & email here for any commit's this script does.
         set_global_git_defaults()
 
         # Create the directory if it does not already exist
