@@ -294,12 +294,7 @@ def github_create_repo(
 
 
 def github_enforce_gitignore(
-    *,
-    github_repo,
-    repo_name,
-    repo_owner,
-    expected_settings,
-    indent_level=0
+    *, github_repo, repo_name, repo_owner, expected_settings, indent_level=0
 ):
     """
     Enforce the .gitignore configuration for a GitHub repository.
