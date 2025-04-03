@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import requests
 import time
 from datetime import datetime, timezone
 from github import Github, GithubException
@@ -290,6 +291,128 @@ def github_create_repo(
 
     except GithubException as e:
         raise Exception("An error occurred while creating repo: {}", e)
+
+
+def github_enforce_gitignore(
+    *, github_repo, repo_name, repo_owner, expected_settings, indent_level=0
+):
+    """
+    Enforce the .gitignore configuration for a GitHub repository.
+
+    Args:
+        github_repo (object): The GitHub repository object.
+        expected_settings (dict): The expected settings containing .gitignore configuration and branches.
+        indent_level (int): The indentation level for logging.
+    """
+    try:
+        gitignore_data = expected_settings.get("gitignore", None)
+        if not gitignore_data:
+            log_message(
+                LogLevel.INFO,
+                f"No .gitignore settings found for repository '{repo_name}'. Skipping .gitignore enforcement.",
+                indent_level=indent_level,
+            )
+            return
+
+        gitignore_config = gitignore_data.get("config")
+        gitignore_type = gitignore_data.get("type")
+        branches = gitignore_data.get("branches", ["main"])
+
+        log_message(
+            LogLevel.INFO,
+            f"Enforcing .gitignore for repository '{repo_name}' on branches: {branches}",
+            indent_level=indent_level,
+        )
+
+        # Use the type provided in the gitignore data
+        if gitignore_type == "url":
+            # Fetch .gitignore content from URL
+            log_message(
+                LogLevel.INFO,
+                f"Fetching .gitignore content from URL: {gitignore_config}",
+                indent_level=indent_level + 1,
+            )
+            response = requests.get(gitignore_config)
+            response.raise_for_status()
+            gitignore_content = response.text
+        elif gitignore_type == "file":
+            # Read .gitignore content from file
+            log_message(
+                LogLevel.INFO,
+                f"Reading .gitignore content from file: {gitignore_config}",
+                indent_level=indent_level + 1,
+            )
+            with open(gitignore_config, "r") as file:
+                gitignore_content = file.read()
+        elif gitignore_type == "list":
+            # Use inline list as .gitignore content
+            log_message(
+                LogLevel.INFO,
+                "Using inline .gitignore content.",
+                indent_level=indent_level + 1,
+            )
+            gitignore_content = "\n".join(gitignore_config)
+        else:
+            raise ValueError(f"Unsupported .gitignore type: {gitignore_type}")
+
+        # Apply the .gitignore content to the specified branches
+        for branch in branches:
+            log_message(
+                LogLevel.INFO,
+                f"Checking .gitignore for branch '{branch}' in repository '{repo_name}'.",
+                indent_level=indent_level + 1,
+            )
+            try:
+                contents = github_repo.get_contents(".gitignore", ref=branch)
+                current_content = contents.decoded_content.decode("utf-8")
+                if current_content != gitignore_content:
+                    log_message(
+                        LogLevel.INFO,
+                        f"Updating .gitignore for branch '{branch}' in repository '{repo_name}'.",
+                        indent_level=indent_level + 1,
+                    )
+                    github_repo.update_file(
+                        path=contents.path,
+                        message=f"Update .gitignore on branch '{branch}'",
+                        content=gitignore_content,
+                        sha=contents.sha,
+                        branch=branch,
+                    )
+                else:
+                    log_message(
+                        LogLevel.INFO,
+                        f".gitignore is already up-to-date for branch '{branch}' in repository '{repo_name}'.",
+                        indent_level=indent_level + 1,
+                    )
+            except GithubException as e:
+                if e.status == 404:
+                    # File does not exist, create it
+                    log_message(
+                        LogLevel.INFO,
+                        f"Creating .gitignore for branch '{branch}' in repository '{repo_name}'.",
+                        indent_level=indent_level + 1,
+                    )
+                    github_repo.create_file(
+                        path=".gitignore",
+                        message=f"Create .gitignore on branch '{branch}'",
+                        content=gitignore_content,
+                        branch=branch,
+                    )
+                else:
+                    raise
+
+        log_message(
+            LogLevel.INFO,
+            f".gitignore enforcement completed for repository '{github_repo.full_name}'.",
+            indent_level=indent_level,
+        )
+    except Exception as e:
+        log_message(
+            LogLevel.ERROR,
+            f"Failed to enforce .gitignore for repository '{github_repo.full_name}': {e}",
+            indent_level=indent_level,
+        )
+        raise
 
 
 def github_enforce_repo_settings(
@@ -759,7 +882,13 @@ def github_process_target_repo(
             indent_level=1,
             dry_run=dry_run,
         )
-
+        github_enforce_gitignore(
+            github_repo=github_target_repo,
+            repo_name=repo_name,
+            repo_owner=repo_owner,
+            expected_settings=expected_repo_data,
+            indent_level=1,
+        )
     return True
 
 

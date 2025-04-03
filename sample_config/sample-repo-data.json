@@ -50,6 +50,40 @@
                 ],
                 "insecure_ssl": "0"
             }
+        },
+        "gitignore": {
+            "inline_sample": {
+                "config": [
+                    ".DS_Store",
+                    ".idea",
+                    ".vscode",
+                    "*.iml",
+                    "*.log",
+                    "*.class",
+                    "*.jar",
+                    "*.war",
+                    "*.ear",
+                    "*.zip",
+                    "*.tar.gz",
+                    "*.tgz",
+                    "*.tar.bz2"
+                ],
+                "branches": [
+                    "main"
+                ]
+            },
+            "fromurl_sample": {
+                "config": "https://raw.githubusercontent.com/github/gitignore/refs/heads/main/Python.gitignore",
+                "branches": [
+                    "main"
+                ]
+            },               
+            "fromfile_sample": {
+                "config": "../sample_config/sample.gitignore",
+                "branches": [
+                    "main"
+                ]
+            }
         }
     },
     "repos": {
@@ -72,6 +106,9 @@
             "user_permissions": {
                 "special-user-test345": "admin",
                 "iacconfig": ""
+            },
+            "gitignore": {
+                "inline_sample": ""
             }
         },
         "repo-test-type2": {
