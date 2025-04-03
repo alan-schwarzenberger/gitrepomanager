@@ -90,6 +90,11 @@ def main():
             max_length=80,
         )
         parser.add_argument(
+            "--convert-csv-config-only",
+            action="store_true",
+            help="Only convert the CSV repo config file to JSON and exit without processing any repos.",
+        )
+        parser.add_argument(
             "--filter-application",
             "-a",
             type=str,
@@ -203,6 +208,21 @@ def main():
         if len(sys.argv) == 1:
             parser.print_help()
             sys.exit(1)
+
+        # Perform CSV to JSON conversion if --convert-csv-config-only is set
+        if args.convert_csv_config_only:
+            if args.repo_config_file is None:
+                raise Exception(
+                    "The --repo-config-file argument must be provided when using --convert-csv-config-only."
+                )
+            actual_repo_config_file_path = temp_convert_csv_repo_config_file(
+                make_full_path(args.config_directory, args.repo_config_file)
+            )
+            log_message(
+                LogLevel.INFO,
+                f"CSV config file converted to JSON: {actual_repo_config_file_path}",
+            )
+            sys.exit(0)
 
         # Log dry-run mode if enabled
         if args.target_dry_run:
