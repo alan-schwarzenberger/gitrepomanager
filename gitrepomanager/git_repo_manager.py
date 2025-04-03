@@ -165,6 +165,11 @@ def main():
             action=AlphanumericAction,
         )
         parser.add_argument(
+            "--target-dry-run",
+            action="store_true",
+            help="Simulate the operations without making any changes to target repo.",
+        )
+        parser.add_argument(
             "--target-repo-type",
             choices=["github", "gitlab"],
             help="Target repository [github (default) or gitlab].",
@@ -198,6 +203,10 @@ def main():
         if len(sys.argv) == 1:
             parser.print_help()
             sys.exit(1)
+
+        # Log dry-run mode if enabled
+        if args.target_dry_run:
+            log_message(LogLevel.INFO, "Dry-run mode enabled. No changes will be made.")
 
         # Output some useful information as the script starts
         log_message(LogLevel.INFO, "Script name: {}", script_name)
@@ -395,8 +404,8 @@ def main():
                         github_user_login=github_user_login,
                         repo_name=repo_name,
                         expected_repo_data=expected_repo_data,
-                        args=args,
                         indent_level=1,
+                        dry_run=args.target_dry_run,
                     ):
                         log_message(
                             LogLevel.INFO,

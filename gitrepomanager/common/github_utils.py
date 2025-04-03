@@ -155,9 +155,26 @@ def github_check_rate_limit(*, github_target, indent_level=0):
 
 
 def github_create_repo(
-    *, github_target, repo_name, org_name=None, expected_settings={}, indent_level=0
+    *,
+    github_target,
+    repo_name,
+    org_name=None,
+    expected_settings={},
+    indent_level=0,
+    dry_run=False,
 ):
     try:
+        if dry_run:
+            log_message(
+                LogLevel.INFO,
+                (
+                    f"[Dry-run] Would create repository '{repo_name}' in organization '{org_name}'"
+                    if org_name
+                    else f"[Dry-run] Would create user repository '{repo_name}'"
+                ),
+                indent_level=indent_level,
+            )
+            return None  # Simulate no repo created
         # use a minimal set of settings to create the repo
         # so make sure that enforce_repo_settings() will be run shortly afterwards
         repo_settings = {
@@ -190,9 +207,22 @@ def github_create_repo(
 
 
 def github_enforce_repo_settings(
-    *, github_repo, expected_settings, reponame, repoowner, indent_level=0
+    *,
+    github_repo,
+    expected_settings,
+    reponame,
+    repoowner,
+    indent_level=0,
+    dry_run=False,
 ):
     try:
+        if dry_run:
+            log_message(
+                LogLevel.INFO,
+                f"[Dry-run] Would enforce settings for {repoowner}/{reponame}",
+                indent_level=indent_level,
+            )
+            return True  # Simulate success
         log_message(
             LogLevel.INFO,
             f"Repository settings enforcing for {repoowner}/{reponame}",
@@ -260,9 +290,16 @@ def github_enforce_repo_settings(
 
 
 def github_enforce_repo_team_permissions(
-    *, github_instance, repo_name, expected_repo_data, indent_level=0
+    *, github_instance, repo_name, expected_repo_data, indent_level=0, dry_run=False
 ):
     try:
+        if dry_run:
+            log_message(
+                LogLevel.INFO,
+                f"[Dry-run] Would enforce team permissions for {repo_name}",
+                indent_level=indent_level,
+            )
+            return  # Simulate no changes
         org_name = expected_repo_data.get("owner")
         log_message(
             LogLevel.INFO,
@@ -360,9 +397,16 @@ def github_enforce_repo_team_permissions(
 
 
 def github_enforce_repo_user_permissions(
-    *, github_instance, repo_name, expected_repo_data, indent_level=0
+    *, github_instance, repo_name, expected_repo_data, indent_level=0, dry_run=False
 ):
     try:
+        if dry_run:
+            log_message(
+                LogLevel.INFO,
+                f"[Dry-run] Would enforce user permissions for {repo_name}",
+                indent_level=indent_level,
+            )
+            return  # Simulate no changes
         org_name = expected_repo_data.get("owner")
         log_message(
             LogLevel.INFO,
@@ -460,8 +504,8 @@ def github_process_target_repo(
     github_user_login,
     repo_name,
     expected_repo_data,
-    args,
     indent_level=0,
+    dry_run=False,
 ):
     repo_owner = expected_repo_data.get("owner")
     if not repo_owner:
@@ -509,6 +553,7 @@ def github_process_target_repo(
                 org_name=repo_owner,
                 expected_settings=expected_repo_data,
                 indent_level=indent_level + 1,
+                dry_run=dry_run,
             )
             if not github_target_repo:
                 log_message(
@@ -546,18 +591,21 @@ def github_process_target_repo(
             reponame=repo_name,
             repoowner=repo_owner,
             indent_level=1,
+            dry_run=dry_run,
         )
         github_enforce_repo_user_permissions(
             github_instance=github_target,
             repo_name=repo_name,
             expected_repo_data=expected_repo_data,
             indent_level=1,
+            dry_run=dry_run,
         )
         github_enforce_repo_team_permissions(
             github_instance=github_target,
             repo_name=repo_name,
             expected_repo_data=expected_repo_data,
             indent_level=1,
+            dry_run=dry_run,
         )
 
     return True
@@ -618,7 +666,9 @@ def github_repo_exists(*, github_target, repo_name, repo_owner, indent_level=0):
             )
 
 
-def update_file_in_repo(*, repo, file_path, local_file_path, commit_message, branch):
+def update_file_in_repo(
+    *, repo, file_path, local_file_path, commit_message, branch, dry_run=False
+):
     try:
         # Read the local file content
         with open(local_file_path, "r") as file:
@@ -630,19 +680,26 @@ def update_file_in_repo(*, repo, file_path, local_file_path, commit_message, bra
             repo_content = contents.decoded_content.decode("utf-8")
             # If the file exists and is different, update it
             if local_content != repo_content:
-                repo.update_file(
-                    contents.path,
-                    commit_message,
-                    local_content,
-                    contents.sha,
-                    branch=branch,
-                )
-                log_message(
-                    LogLevel.INFO,
-                    "Updated file '{}' in repository '{}'",
-                    file_path,
-                    repo.full_name,
-                )
+                if dry_run:
+                    log_message(
+                        LogLevel.INFO,
+                        f"[Dry-run] Would update file '{file_path}' in repository '{repo.full_name}'",
+                    )
+                    return
+                else:
+                    repo.update_file(
+                        contents.path,
+                        commit_message,
+                        local_content,
+                        contents.sha,
+                        branch=branch,
+                    )
+                    log_message(
+                        LogLevel.INFO,
+                        "Updated file '{}' in repository '{}'",
+                        file_path,
+                        repo.full_name,
+                    )
             else:
                 log_message(
                     LogLevel.INFO,
@@ -650,16 +707,28 @@ def update_file_in_repo(*, repo, file_path, local_file_path, commit_message, bra
                     file_path,
                     repo.full_name,
                 )
-        except:
-            # If the file does not exist, create it
-            repo.create_file(file_path, commit_message, local_content, branch=branch)
-            log_message(
-                LogLevel.INFO,
-                "Created file '{}' in repository '{}'",
-                file_path,
-                repo.full_name,
-            )
-
+        except GithubException as e:
+            if e.status == 404:
+                # File does not exist, create it
+                if dry_run:
+                    log_message(
+                        LogLevel.INFO,
+                        f"[Dry-run] Would create file '{file_path}' in repository '{repo.full_name}'",
+                    )
+                    return
+                else:
+                    repo.create_file(
+                        file_path, commit_message, local_content, branch=branch
+                    )
+                    log_message(
+                        LogLevel.INFO,
+                        "Created file '{}' in repository '{}'",
+                        file_path,
+                        repo.full_name,
+                    )
+            else:
+                # Handle other exceptions
+                raise
     except Exception as e:
         log_message(
             LogLevel.ERROR,
