@@ -373,23 +373,38 @@ def github_enforce_branch_protection(
                 f"Applying branch protection rules for branch '{branch_name}' in repository '{repo_name}'.",
                 indent_level=indent_level + 1,
             )
-            branch.edit_protection(
-                enforce_admins=protections.get("enforce_admins", False),
-                allow_force_pushes=protections.get("allow_force_pushes", False),
-                allow_deletions=protections.get("allow_deletions", False),
-                block_creations=protections.get("block_creations", False),
-                required_conversation_resolution=protections.get(
-                    "required_conversation_resolution", False
-                ),
-                required_linear_history=protections.get(
-                    "required_linear_history", False
-                ),
-            )
-            log_message(
-                LogLevel.DEBUG,
-                f"Basic branch protection rules applied for branch '{branch_name}' in repository '{repo_name}'.",
-                indent_level=indent_level + 1,
-            )
+            try:
+                branch.edit_protection(
+                    enforce_admins=protections.get("enforce_admins", False),
+                    allow_force_pushes=protections.get("allow_force_pushes", False),
+                    allow_deletions=protections.get("allow_deletions", False),
+                    block_creations=protections.get("block_creations", False),
+                    required_conversation_resolution=protections.get(
+                        "required_conversation_resolution", False
+                    ),
+                    required_linear_history=protections.get(
+                        "required_linear_history", False
+                    ),
+                )
+                log_message(
+                    LogLevel.DEBUG,
+                    f"Basic branch protection rules applied for branch '{branch_name}' in repository '{repo_name}'.",
+                    indent_level=indent_level + 1,
+                )
+            except GithubException as e:
+                if e.status == 403 and "branch is locked" in str(e):
+                    log_message(
+                        LogLevel.WARNING,
+                        f"Branch '{branch_name}' in repository '{repo_name}' is locked. Skipping branch protection enforcement.",
+                        indent_level=indent_level,
+                    )
+                else:
+                    log_message(
+                        LogLevel.ERROR,
+                        f"Failed to enforce branch protection for branch '{branch_name}' in repository '{repo_name}': {e}",
+                        indent_level=indent_level,
+                    )
+                    raise
 
             # Set required status checks separately
             required_status_checks = protections.get("required_status_checks", None)
