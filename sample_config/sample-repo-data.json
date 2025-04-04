@@ -84,6 +84,35 @@
                     "main"
                 ]
             }
+        },
+        "branch_protection": {
+            "main_only_allow_push": {
+                "branches": ["main"],
+                "protections": {
+                    "required_status_checks": null,
+                    "enforce_admins": true,
+                    "required_pull_request_reviews": {
+                        "dismiss_stale_reviews": true,
+                        "require_code_owner_reviews": false,
+                        "required_approving_review_count": 1,
+                        "require_last_push_approval": false,
+                        "bypass_pull_request_allowances": {
+                            "users": ["SAMPLEUSER123"],
+                            "teams": []
+                        }
+                    },
+                    "restrictions": {
+                        "users": [],
+                        "teams": ["devops"]
+                    },
+                    "block_creations": false,
+                    "allow_force_pushes": false,
+                    "allow_deletions": false,
+                    "required_conversation_resolution": false,
+                    "required_linear_history": false,
+                    "required_signatures": false
+                }
+            }
         }
     },
     "repos": {
@@ -109,6 +138,9 @@
             },
             "gitignore": {
                 "inline_sample": ""
+            },
+            "branch_protection": {
+                "main_only_allow_push": ""
             }
         },
         "repo-test-type2": {
@@ -142,8 +174,10 @@
                     ],
                     "insecure_ssl": "0"
                 }
+            },
+            "branch_protection": {
+                "main_only_allow_push": ""
             }
-            
         }
     }
 }

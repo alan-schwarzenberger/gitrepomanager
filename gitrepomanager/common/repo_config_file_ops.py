@@ -98,6 +98,34 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
             "config": "../../master.gitignore",
             "branches": ["main"],
         }
+        data["defaults"]["branch_protection"]["mainonlyallowpush"] = {
+            "branches": ["main"],
+            "protections": {
+                "required_status_checks": None,
+                "enforce_admins": True,
+                "required_pull_request_reviews": {
+                    "dismiss_stale_reviews": True,
+                    "require_code_owner_reviews": False,
+                    "required_approving_review_count": 1,
+                    "require_last_push_approval": False,
+                    "bypass_pull_request_allowances": {
+                        "users": ["N86D49", "TRVEU-JENKINS-SVN"],
+                        "teams": [],
+                    },
+                },
+                "restrictions": {
+                    "users": [],
+                    "teams": ["devops", "epam", "agile-development"],
+                },
+                "block_creations": False,
+                "allow_force_pushes": False,
+                "allow_deletions": False,
+                "required_conversation_resolution": False,
+                "required_linear_history": False,
+                "required_signatures": False,
+            },
+        }
+
         data["repos"] = {}
 
         # Open the CSV file for reading
@@ -349,6 +377,55 @@ def get_expected_repo_data(repo_config_data, default_config_data, indent_level=0
                     "type": gitignore_config_type,
                     "config": gitignore_config,
                     "branches": gitignore_branches,
+                }
+        elif key == "branch_protection":
+            # Get the desired branch protection settings from the repo_data
+            desired_branch_protection_settings = repo_config_data.get(
+                "branch_protection", {}
+            )
+            # Log a warning if there is more than one entry in desired_branch_protection_settings
+            if len(desired_branch_protection_settings) > 1:
+                log_message(
+                    LogLevel.WARNING,
+                    "Warning: More than one entry found for branch protection settings in repo config.",
+                    indent_level=indent_level,
+                )
+            else:
+                # Get the default branch protection settings from the repo_data
+                default_branch_protection_settings = default_config_data.get(
+                    "branch_protection", {}
+                )
+                # Expand permissions for the single entry in desired_branch_protection_settings
+                branch_protection_name, branch_protection_data = next(
+                    iter(desired_branch_protection_settings.items()), (None, None)
+                )
+                if branch_protection_name:
+                    if not branch_protection_data:
+                        # Use default branch protection settings if desired config is empty
+                        branch_protection_data = default_branch_protection_settings.get(
+                            branch_protection_name, {}
+                        )
+
+                    # Extract branches and protection rules
+                    branch_protection_branches = branch_protection_data.get(
+                        "branches", ["main"]
+                    )
+                    branch_protection_rules = branch_protection_data.get(
+                        "protections", {}
+                    )
+
+                    # Validate the type of branch_protection_rules
+                    if not isinstance(branch_protection_rules, dict):
+                        log_message(
+                            LogLevel.WARNING,
+                            "Branch protection rules type is unrecognized.",
+                            indent_level=indent_level,
+                        )
+                        branch_protection_rules = {}
+
+                expected_repo_data["branch_protection"] = {
+                    "branches": branch_protection_branches,
+                    "protections": branch_protection_rules,
                 }
         else:
             expected_repo_data[key] = value
