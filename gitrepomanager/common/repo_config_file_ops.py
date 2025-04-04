@@ -120,12 +120,65 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
                 "block_creations": False,
                 "allow_force_pushes": False,
                 "allow_deletions": False,
+                "lock branch": False,
                 "required_conversation_resolution": False,
                 "required_linear_history": False,
                 "required_signatures": False,
             },
         }
-
+        data["defaults"]["branch_protection"]["epam"] = {
+            "branches": ["main"],
+            "protections": {
+                "required_status_checks": None,
+                "enforce_admins": True,
+                "required_pull_request_reviews": {
+                    "dismiss_stale_reviews": True,
+                    "require_code_owner_reviews": False,
+                    "required_approving_review_count": 1,
+                    "require_last_push_approval": False,
+                    "bypass_pull_request_allowances": {
+                        "users": ["N86D48", "N86D49", "N86D4F", "N86D71", "TRVEU-JENKINS-SVN"],
+                        "teams": [],
+                    },
+                },
+                "restrictions": {
+                    "users": [],
+                    "teams": [
+                        "devops",
+                        "epam",
+                    ],
+                },
+                "block_creations": False,
+                "allow_force_pushes": False,
+                "allow_deletions": False,
+                "lock branch": False,
+                "required_conversation_resolution": False,
+                "required_linear_history": False,
+                "required_signatures": False,
+            },
+        }
+        data["defaults"]["branch_protection"]["iacconfig"] = {
+            "branches": ["main", "release-dev", "release-test", "release-mo"],
+            "protections": {
+                "required_status_checks": None,
+                "enforce_admins": True,
+                "required_pull_request_reviews": None,
+                "restrictions": {
+                    "users": [],
+                    "teams": [
+                        "devops",
+                        "epam",
+                    ],
+                },
+                "block_creations": False,
+                "allow_force_pushes": False,
+                "allow_deletions": False,
+                "lock branch": False,
+                "required_conversation_resolution": False,
+                "required_linear_history": False,
+                "required_signatures": False,
+            },
+        }
         data["repos"] = {}
 
         # Open the CSV file for reading
