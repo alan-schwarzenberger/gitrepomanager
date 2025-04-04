@@ -137,7 +137,13 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
                     "required_approving_review_count": 1,
                     "require_last_push_approval": False,
                     "bypass_pull_request_allowances": {
-                        "users": ["N86D48", "N86D49", "N86D4F", "N86D71", "TRVEU-JENKINS-SVN"],
+                        "users": [
+                            "N86D48",
+                            "N86D49",
+                            "N86D4F",
+                            "N86D71",
+                            "TRVEU-JENKINS-SVN",
+                        ],
                         "teams": [],
                     },
                 },
