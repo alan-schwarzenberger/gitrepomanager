@@ -423,6 +423,7 @@ def main():
                         github_user_login=github_user_login,
                         repo_name=repo_name,
                         expected_repo_data=expected_repo_data,
+                        github_token=target_access_token,
                         indent_level=1,
                         dry_run=args.target_dry_run,
                     ):

@@ -113,6 +113,46 @@
                     "required_signatures": false
                 }
             }
+        },
+        "rulesets": {
+            "iacconfig-forcepr": {
+                "name": "iacconfig-forcepr",
+                "target": "branch",
+                "enforcement": "active",
+                "bypass_actors": [],
+                "conditions": {
+                    "ref_name": {
+                        "exclude": [],
+                        "include": [
+                            "refs/heads/release-*"
+                        ]
+                    }
+                },
+                "rules": [
+                    {
+                        "type": "deletion"
+                    },
+                    {
+                        "type": "non_fast_forward"
+                    },
+                    {
+                        "type": "creation"
+                    },
+                    {
+                        "type": "update"
+                    },
+                    {
+                        "type": "pull_request",
+                        "parameters": {
+                            "required_approving_review_count": 1,
+                            "dismiss_stale_reviews_on_push": true,
+                            "require_code_owner_review": true,
+                            "require_last_push_approval": false,
+                            "required_review_thread_resolution": false
+                        }
+                    }
+                ]
+            }
         }
     },
     "repos": {
@@ -141,6 +181,9 @@
             },
             "branch_protection": {
                 "main_only_allow_push": ""
+            },
+            "rulesets": {
+                "iacconfig-forcepr": ""
             }
         },
         "repo-test-type2": {

@@ -185,6 +185,45 @@ def csv_file_to_json_file(csv_file_path, json_file_path):
                 "required_signatures": False,
             },
         }
+        data["defaults"]["rulesets"] = {}
+        data["defaults"]["rulesets"]["iacconfig"] = {
+            "name": "iacconfig-forcepr",
+            "target": "branch",
+            "enforcement": "active",
+            "bypass_actors": [
+                {
+                    # repository admin
+                    "actor_id": 5,
+                    "actor_type": "RepositoryRole",
+                    "bypass_mode": "always",
+                },
+                {
+                    # uk/devops
+                    "actor_id": 419,
+                    "actor_type": "Team",
+                    "bypass_mode": "always",
+                },
+            ],
+            "conditions": {
+                "ref_name": {"exclude": [], "include": ["refs/heads/release-*"]}
+            },
+            "rules": [
+                {"type": "deletion"},
+                {"type": "non_fast_forward"},
+                {"type": "creation"},
+                {"type": "update"},
+                {
+                    "type": "pull_request",
+                    "parameters": {
+                        "required_approving_review_count": 1,
+                        "dismiss_stale_reviews_on_push": True,
+                        "require_code_owner_review": True,
+                        "require_last_push_approval": False,
+                        "required_review_thread_resolution": False,
+                    },
+                },
+            ],
+        }
         data["repos"] = {}
 
         # Open the CSV file for reading
@@ -442,50 +481,63 @@ def get_expected_repo_data(repo_config_data, default_config_data, indent_level=0
             desired_branch_protection_settings = repo_config_data.get(
                 "branch_protection", {}
             )
-            # Log a warning if there is more than one entry in desired_branch_protection_settings
-            if len(desired_branch_protection_settings) > 1:
-                log_message(
-                    LogLevel.WARNING,
-                    "Warning: More than one entry found for branch protection settings in repo config.",
-                    indent_level=indent_level,
-                )
-            else:
-                # Get the default branch protection settings from the repo_data
-                default_branch_protection_settings = default_config_data.get(
-                    "branch_protection", {}
-                )
-                # Expand permissions for the single entry in desired_branch_protection_settings
-                branch_protection_name, branch_protection_data = next(
-                    iter(desired_branch_protection_settings.items()), (None, None)
-                )
-                if branch_protection_name:
-                    if not branch_protection_data:
-                        # Use default branch protection settings if desired config is empty
-                        branch_protection_data = default_branch_protection_settings.get(
-                            branch_protection_name, {}
-                        )
+            # Expand multiple branch protection entries
+            expanded_branch_protection_settings = {}
+            for (
+                protection_name,
+                protection_data,
+            ) in desired_branch_protection_settings.items():
+                if not protection_data:
+                    # Use default branch protection settings if desired config is empty
+                    protection_data = default_config_data.get(
+                        "branch_protection", {}
+                    ).get(protection_name, {})
 
-                    # Extract branches and protection rules
-                    branch_protection_branches = branch_protection_data.get(
-                        "branches", ["main"]
+                # Extract branches and protection rules
+                branch_protection_branches = protection_data.get("branches", ["main"])
+                branch_protection_rules = protection_data.get("protections", {})
+
+                # Validate the type of branch_protection_rules
+                if not isinstance(branch_protection_rules, dict):
+                    log_message(
+                        LogLevel.WARNING,
+                        f"Branch protection rules type is unrecognized for '{protection_name}'.",
+                        indent_level=indent_level,
                     )
-                    branch_protection_rules = branch_protection_data.get(
-                        "protections", {}
-                    )
+                    branch_protection_rules = {}
 
-                    # Validate the type of branch_protection_rules
-                    if not isinstance(branch_protection_rules, dict):
-                        log_message(
-                            LogLevel.WARNING,
-                            "Branch protection rules type is unrecognized.",
-                            indent_level=indent_level,
-                        )
-                        branch_protection_rules = {}
-
-                expected_repo_data["branch_protection"] = {
+                expanded_branch_protection_settings[protection_name] = {
                     "branches": branch_protection_branches,
                     "protections": branch_protection_rules,
                 }
+
+            expected_repo_data["branch_protection"] = (
+                expanded_branch_protection_settings
+            )
+        elif key == "rulesets":
+            # Get the desired ruleset settings from the repo_data
+            desired_ruleset_settings = repo_config_data.get("rulesets", {})
+            # Expand multiple ruleset entries
+            expanded_ruleset_settings = {}
+            for ruleset_name, ruleset_data in desired_ruleset_settings.items():
+                if not ruleset_data:
+                    # Use default ruleset settings if desired config is empty
+                    ruleset_data = default_config_data.get("rulesets", {}).get(
+                        ruleset_name, {}
+                    )
+
+                # Validate the ruleset structure
+                if not isinstance(ruleset_data, dict):
+                    log_message(
+                        LogLevel.WARNING,
+                        f"Ruleset data type is unrecognized for '{ruleset_name}'.",
+                        indent_level=indent_level,
+                    )
+                    ruleset_data = {}
+
+                expanded_ruleset_settings[ruleset_name] = ruleset_data
+
+            expected_repo_data["rulesets"] = expanded_ruleset_settings
         else:
             expected_repo_data[key] = value
 
